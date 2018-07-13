@@ -1,6 +1,6 @@
 {
   "name": "jsforce-keychain",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "An interactive login manager for jsforce",
   "main": "index.js",
   "repository": "jdcrensh/jsforce-keychain",
