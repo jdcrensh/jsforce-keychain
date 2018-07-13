@@ -108,7 +108,7 @@ const promptCreds = async () => {
     res = connection;
   }
   try {
-    testConnection(res);
+    await testConnection(res);
     return answers;
   } catch (err) {
     console.error(chalk.red(err.message));
