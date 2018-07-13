@@ -1,11 +1,15 @@
 {
   "name": "jsforce-keychain",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "An interactive login manager for jsforce",
   "main": "index.js",
   "repository": "jdcrensh/jsforce-keychain",
   "author": "Jon Crenshaw <jdcrensh@gmail.com>",
   "license": "MIT",
+  "files": ["index.js"],
+  "engines": {
+    "node": ">= 8.11.3"
+  },
   "scripts": {
     "precommit": "lint-staged"
   },

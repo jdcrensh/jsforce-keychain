@@ -1,5 +1,6 @@
 'use strict';
 
+const { promisify } = require('util');
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 const jsforce = require('jsforce');
@@ -13,26 +14,27 @@ const argv = yargs.option('c', {
 }).argv;
 
 const db = new Store('./.jsforce', { single: false, pretty: true });
+db.getAsync = promisify(db.get);
+db.saveAsync = promisify(db.save);
 
 const CREATE_NEW = 'Create New';
 
-const getConnections = () => {
-  let res = db.getSync('connections');
-  if (res instanceof Error) {
-    db.saveSync('connections', (res = []));
+const getConnections = async () => {
+  try {
+    return await db.getAsync('connections');
+  } catch (err) {
+    await db.saveAsync('connections', []);
+    return [];
   }
-  return res;
 };
 
-const getServerList = () => [
+const getServerList = async () => [
   CREATE_NEW,
-  ...getConnections()
-    .map(c => c.alias)
-    .filter(n => !!n),
+  ...(await getConnections()).map(c => c.alias).filter(n => !!n),
 ];
 
-const findConnection = alias => {
-  const connections = db.getSync('connections');
+const findConnection = async alias => {
+  const connections = await db.getAsync('connections');
   return connections.find(c => c.alias === alias);
 };
 
@@ -41,7 +43,7 @@ const testConnection = ({ loginUrl, username, password, securityToken }) => {
   return conn.login(username, password + securityToken);
 };
 
-const promptCreds = resolve => {
+const promptCreds = async () => {
   let _answers;
   const doPrompt = answers =>
     (_answers = answers) && answers.chosen_alias === CREATE_NEW;
@@ -51,15 +53,16 @@ const promptCreds = resolve => {
       type: 'list',
       name: 'chosen_alias',
       message: 'Choose which connection to use:',
-      choices: getServerList(),
+      choices: await getServerList(),
       default: CREATE_NEW,
-      when: () => !getServerList().includes(argv.c),
+      when: async () => !(await getServerList()).includes(argv.c),
     },
     {
       type: 'input',
       name: 'alias',
       message: 'Enter a unique alias for this connection:',
-      validate: input => input.length > 0 && !getServerList().includes(input),
+      validate: async input =>
+        input.length > 0 && !(await getServerList()).includes(input),
       when: doPrompt,
     },
     {
@@ -91,38 +94,40 @@ const promptCreds = resolve => {
       when: doPrompt,
     },
   ];
-  inquirer.prompt(prompts).then(answers => {
-    if (!_answers) {
-      answers = { chosen_alias: argv.c };
-    }
-    let creds;
-    if (answers.chosen_alias === CREATE_NEW) {
-      creds = answers;
-    } else {
-      const connection = findConnection(answers.chosen_alias);
-      creds = connection;
-    }
-    testConnection(creds)
-      .then(() => resolve(answers))
-      .catch(err => {
-        console.error(chalk.red(err.message));
-        return this.creds();
-      });
-  });
+  let answers = await inquirer.prompt(prompts);
+  if (!_answers) {
+    answers = { chosen_alias: argv.c };
+  }
+  let res;
+  if (answers.chosen_alias === CREATE_NEW) {
+    res = answers;
+  } else {
+    const connection = await findConnection(answers.chosen_alias);
+    res = connection;
+  }
+  try {
+    testConnection(res);
+    return answers;
+  } catch (err) {
+    console.error(chalk.red(err.message));
+    return await creds();
+  }
 };
 
-const creds = () =>
-  new Promise((resolve, reject) => {
-    if (getServerList().includes(argv.c)) {
-      resolve(findConnection(argv.c));
-    } else {
-      promptCreds(resolve, reject);
-    }
-  });
+const creds = async () => {
+  const serverList = await getServerList();
+  if (serverList.includes(argv.c)) {
+    return await findConnection(argv.c);
+  }
+  return promptCreds();
+};
 
-creds().then(answers => {
-  const connections = getConnections();
-  connections.forEach(c => (c.active = false));
+(async () => {
+  const answers = await creds();
+  const connections = await getConnections();
+  for (const c of connections) {
+    c.active = false;
+  }
   if (answers.chosen_alias === CREATE_NEW) {
     connections.push({
       active: true,
@@ -133,7 +138,8 @@ creds().then(answers => {
       securityToken: answers.securityToken,
     });
   } else {
-    connections.find(c => c.alias === answers.chosen_alias).active = true;
+    const chosen = connections.find(c => c.alias === answers.chosen_alias);
+    chosen.active = true;
   }
   db.saveSync('connections', connections);
-});
+})();
