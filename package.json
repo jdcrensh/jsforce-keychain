@@ -9,6 +9,9 @@
   "files": [
     "index.js"
   ],
+  "bin": {
+    "jsforce-keychain": "./index.js"
+  },
   "engines": {
     "node": ">= 8.11.3"
   },
