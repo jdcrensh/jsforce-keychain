@@ -7,10 +7,11 @@
   "author": "Jon Crenshaw <jdcrensh@gmail.com>",
   "license": "MIT",
   "files": [
-    "index.js"
+    "index.js",
+    "cli.js"
   ],
   "bin": {
-    "jsforce-keychain": "./index.js"
+    "jsforce-keychain": "./cli.js"
   },
   "engines": {
     "node": ">= 8.11.3"

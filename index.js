@@ -124,7 +124,7 @@ const creds = async () => {
   return promptCreds();
 };
 
-(async () => {
+const prompt = async () => {
   const answers = await creds();
   const connections = await getConnections();
   for (const c of connections) {
@@ -144,4 +144,6 @@ const creds = async () => {
     chosen.active = true;
   }
   db.saveSync('connections', connections);
-})();
+};
+
+module.exports = { prompt, getConnections };
